@@ -21,6 +21,7 @@ model Document {
   chunkCount Int      @default(0)
   status     String   @default("uploaded") // uploaded | processing | ready | failed
   isSample   Boolean  @default(false)
+  embeddingModel String? // e.g. "openai:text-embedding-3-small" or "gemini:gemini-embedding-2"
   createdAt  DateTime @default(now())
   chunks     Chunk[]
 }

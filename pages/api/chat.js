@@ -1,7 +1,7 @@
 import prisma from "@/lib/db";
-import { embedQuery } from "@/lib/embedder";
+import { embedQuery, embeddingModel } from "@/lib/embedder";
 import { searchChunks } from "@/lib/vectorSearch";
-import { streamAnswer } from "@/lib/ragAnswer";
+import { streamAnswer } from "@/lib/claudeRAG";
 import { startSSE } from "@/lib/sse";
 
 export const config = { maxDuration: 60 };
@@ -15,9 +15,16 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "docId and question are required" });
   }
 
-  const doc = await prisma.document.findUnique({ where: { id: docId }, select: { title: true, status: true } });
+  const doc = await prisma.document.findUnique({
+    where: { id: docId },
+    select: { title: true, status: true, embeddingModel: true },
+  });
   if (!doc) return res.status(404).json({ error: "Document not found" });
   if (doc.status !== "ready") return res.status(409).json({ error: "This document is still being processed" });
+  // Question and chunks must be embedded by the same model, or similarity scores are meaningless
+  if (doc.embeddingModel && doc.embeddingModel !== embeddingModel()) {
+    return res.status(409).json({ error: "This document was indexed with a different embedding model. Please upload it again." });
+  }
 
   const send = startSSE(res);
   try {

@@ -3,17 +3,18 @@ export const STEPS = [
   { key: "uploaded", label: "PDF uploaded", detail: "User uploads" },
   { key: "extracted", label: "Text extracted", detail: "pdf-parse" },
   { key: "chunked", label: "Chunked", detail: "500 tokens · 50 overlap" },
-  { key: "embedded", label: "Embedded", detail: "gemini-embedding-2 · 768d" },
+  { key: "embedded", label: "Embedded", detail: "768-dim vectors" },
   { key: "stored", label: "Stored", detail: "pgvector" },
   { key: "searched", label: "Searched", detail: "Cosine · top 5" },
   { key: "answered", label: "Answered", detail: "LLM + context · SSE" },
 ];
 
 /**
- * status: { [stepKey]: "done" | "active" | "error" }
- * notes:  { [stepKey]: string } extra live info, e.g. "12 chunks"
+ * status:   { [stepKey]: "done" | "active" | "error" }
+ * notes:    { [stepKey]: string } extra live info, e.g. "12 chunks"
+ * defaults: { [stepKey]: string } replaces a step's default detail, e.g. the model in use
  */
-export default function PipelineProgress({ status = {}, notes = {}, compact = false }) {
+export default function PipelineProgress({ status = {}, notes = {}, defaults = {}, compact = false }) {
   return (
     <ol className={`grid gap-3 ${compact ? "grid-cols-2 sm:grid-cols-4 lg:grid-cols-7" : "sm:grid-cols-2 lg:grid-cols-7"}`}>
       {STEPS.map((step, i) => {
@@ -34,7 +35,7 @@ export default function PipelineProgress({ status = {}, notes = {}, compact = fa
             </span>
             <div className="min-w-0">
               <p className="font-medium text-sm">{step.label}</p>
-              <p className="text-xs text-slate-400">{notes[step.key] || step.detail}</p>
+              <p className="text-xs text-slate-400 break-words">{notes[step.key] || defaults[step.key] || step.detail}</p>
             </div>
           </li>
         );

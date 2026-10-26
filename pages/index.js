@@ -8,8 +8,18 @@ import { readSSE } from "@/lib/sse";
 import PdfUploader from "@/components/PdfUploader";
 import PipelineProgress from "@/components/PipelineProgress";
 import DocumentCard from "@/components/DocumentCard";
+import FeatureList from "@/components/FeatureList";
+import { embeddingModel } from "@/lib/embedder";
+import { answerModel, isClaudeEnabled } from "@/lib/claudeRAG";
 
 export async function getServerSideProps() {
+  const providers = {
+    embedding: embeddingModel(),
+    answer: answerModel(),
+    openai: embeddingModel().startsWith("openai:"),
+    claude: isClaudeEnabled(),
+  };
+
   try {
     await ensureSample();
     const docs = await prisma.document.findMany({
@@ -18,14 +28,14 @@ export async function getServerSideProps() {
       select: { id: true, title: true, pageCount: true, chunkCount: true, tokenCount: true, isSample: true, createdAt: true },
       take: 6,
     });
-    return { props: { docs: docs.map((d) => ({ ...d, createdAt: d.createdAt.toISOString() })) } };
+    return { props: { providers, docs: docs.map((d) => ({ ...d, createdAt: d.createdAt.toISOString() })) } };
   } catch (err) {
     console.error(err);
-    return { props: { docs: [] } };
+    return { props: { providers, docs: [] } };
   }
 }
 
-export default function Home({ docs }) {
+export default function Home({ docs, providers }) {
   const router = useRouter();
   const [status, setStatus] = useState({});
   const [notes, setNotes] = useState({});
@@ -77,7 +87,7 @@ export default function Home({ docs }) {
         } else if (event === "embedding") {
           mark("embedded", "active", `${data.done}/${data.total} chunks`);
         } else if (event === "embedded") {
-          mark("embedded", "done", `${data.dimensions}-dim vectors`);
+          mark("embedded", "done", `${data.dimensions}-dim · ${data.model}`);
           current = "stored";
           mark("stored", "active");
         } else if (event === "stored") {
@@ -128,8 +138,14 @@ export default function Home({ docs }) {
         <p className="text-sm text-slate-400 mb-5">
           {busy ? "Processing your document..." : "Steps 1–5 run when you upload. Steps 6–7 run for every question."}
         </p>
-        <PipelineProgress status={status} notes={notes} />
+        <PipelineProgress
+          status={status}
+          notes={notes}
+          defaults={{ embedded: providers.embedding, answered: `${providers.answer} · SSE` }}
+        />
       </section>
+
+      <FeatureList providers={providers} />
 
       {docs.length > 0 && (
         <section className="mt-12">

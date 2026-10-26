@@ -35,3 +35,8 @@ DELETE FROM "Chunk" a USING "Chunk" b
 WHERE a."documentId" = b."documentId" AND a."index" = b."index" AND a."id" > b."id";
 
 CREATE UNIQUE INDEX IF NOT EXISTS "Chunk_documentId_index_key" ON "Chunk"("documentId", "index");
+
+-- Which embedding model produced a document's vectors (OpenAI and Gemini vectors can't be compared)
+ALTER TABLE "Document" ADD COLUMN IF NOT EXISTS "embeddingModel" TEXT;
+UPDATE "Document" SET "embeddingModel" = 'gemini:gemini-embedding-2'
+WHERE "embeddingModel" IS NULL AND "status" = 'ready';
