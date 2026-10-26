@@ -28,3 +28,10 @@ CREATE TABLE IF NOT EXISTS "Chunk" (
 );
 
 CREATE INDEX IF NOT EXISTS "Chunk_documentId_idx" ON "Chunk"("documentId");
+
+-- One row per chunk position, so re-processing a document overwrites instead of duplicating.
+-- Remove any duplicates left by older versions first, or the unique index can't be created.
+DELETE FROM "Chunk" a USING "Chunk" b
+WHERE a."documentId" = b."documentId" AND a."index" = b."index" AND a."id" > b."id";
+
+CREATE UNIQUE INDEX IF NOT EXISTS "Chunk_documentId_index_key" ON "Chunk"("documentId", "index");
