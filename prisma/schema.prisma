@@ -1,7 +1,39 @@
-// Demo Prisma schema
+// Tables are created by sql/enable-pgvector.sql (see scripts/setup-db.js), not `prisma db push`.
+// This schema mirrors them so Prisma Client can query them.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
 model Document {
-  id    Int    @id @default(autoincrement())
-  title String
-  content String
-  createdAt DateTime @default(now())
+  id         String   @id
+  title      String
+  fileName   String
+  pages      Json     @default("[]")
+  pageCount  Int      @default(0)
+  tokenCount Int      @default(0)
+  chunkCount Int      @default(0)
+  status     String   @default("uploaded") // uploaded | processing | ready | failed
+  isSample   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  chunks     Chunk[]
+}
+
+model Chunk {
+  id         String                       @id @default(dbgenerated("gen_random_uuid()::text"))
+  documentId String
+  document   Document                     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  index      Int
+  page       Int                          @default(1)
+  content    String
+  tokenCount Int
+  embedding  Unsupported("vector(768)")?
+
+  @@index([documentId])
 }
