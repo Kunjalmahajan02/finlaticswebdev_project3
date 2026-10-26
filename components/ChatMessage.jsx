@@ -1,12 +1,13 @@
 import { useState } from "react";
 import ChunkSourceList from "@/components/ChunkSourceList";
 
-// Turns "[2]" citation markers into buttons that open that source below the answer
+// Turns "[2]" citation markers into buttons that open that source below the answer.
+// Some models write fullwidth brackets like "【2】", so both forms are accepted.
 function renderWithCitations(text, onCite) {
-  return text.split(/(\[\d+\])/g).map((part, i) => {
-    const match = part.match(/^\[(\d+)\]$/);
+  return text.split(/(\[\d+\]|【\d+(?:†[^】]*)?】)/g).map((part, i) => {
+    const match = part.match(/^(?:\[(\d+)\]|【(\d+)(?:†[^】]*)?】)$/);
     if (!match) return <span key={i}>{part.replace(/\*\*/g, "")}</span>;
-    const n = Number(match[1]);
+    const n = Number(match[1] || match[2]);
     return (
       <button
         key={i}
