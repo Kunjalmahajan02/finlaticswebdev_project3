@@ -51,18 +51,31 @@ export default function ChatPage({ doc }) {
     setBusy(true);
 
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ docId: doc.id, question, history }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
+      // A cold serverless start can occasionally cut the stream before any text arrives; retry once
+      for (let attempt = 1; ; attempt++) {
+        let finished = false;
+        let gotText = false;
 
-      await readSSE(res, (event, data) => {
-        if (event === "sources") updateLast({ sources: data });
-        else if (event === "token") updateLast((m) => ({ content: m.content + data.text }));
-        else if (event === "error") updateLast({ error: data.error });
-      });
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ docId: doc.id, question, history }),
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+
+        await readSSE(res, (event, data) => {
+          if (event === "sources") updateLast({ sources: data });
+          else if (event === "token") {
+            gotText = true;
+            updateLast((m) => ({ content: m.content + data.text }));
+          } else if (event === "error") throw new Error(data.error);
+          else if (event === "done") finished = true;
+        });
+
+        if (finished) break;
+        if (!gotText && attempt < 2) continue;
+        throw new Error(gotText ? "The answer was cut off. Please ask again." : "No answer came back. Please try again.");
+      }
     } catch (err) {
       updateLast({ error: err.message || "Something went wrong." });
     } finally {
